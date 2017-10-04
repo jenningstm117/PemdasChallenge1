@@ -6,5 +6,5 @@ module.exports = function(app) {
         .get(api.index);
 
     app.route('/numbers')
-        .get(api.random_ints);
+        .get(api.randomInts);
 };

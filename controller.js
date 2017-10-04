@@ -1,60 +1,71 @@
 'use strict';
 
-let rp = require('request-promise');
+let async = require('async');
+let request = require('request');
 
 
-exports.random_ints = function(req, res) {
+exports.randomInts = function(req, res) {
     let randomArray = (length, max) => [...new Array(length)]
         .map(() => Math.round(Math.random() * max));
 
-    // res.json({numbers: randomArray(10, 10)});
     let data = {valid: Math.random() >= 0.3, numbers: randomArray(10, 10)};
-    res.json(data);
+    setTimeout(function(){
+        res.json(data);
+    }, Math.random()*150);
 };
 
-exports.index = function(req, res) {
-    let options = {
-        uri: 'http://localhost:3000/numbers',
-    };
-    let promises = [rp(options), rp(options), rp(options)];
-    Promise.all(promises)
-        .then(result => {
-            let sum = sumValues(result);
 
-            console.log(sum);
-        });
+
+let invalid_results = 0,
+    valid_results = 0,
+    invalid_sum = 0,
+    sum = 0;
+
+let getNumbers = (callback) => {
+    let url = "http://localhost:3000/numbers";
+    let start = new Date();
+    request(url, function(err, response, body) {
+        let response_time = new Date() - start;
+        let obj = JSON.parse(body);
+        console.log(start, response_time, obj.numbers, obj.numbers.reduce((a, b) => a + b));
+
+        sumValues(obj.numbers, response_time);
+
+        callback(false, {sum: obj.numbers.reduce((a, b) => a + b), response_time: response_time});
+    });
 };
 
-function sumValues(values){
-    let sum = 0,
-        invalid_sum = 0,
-        invalid_count = 0,
-        use_invalid = false;
-
-    let values_sum = values.map(item => {
-        let json_item = JSON.parse(item);
-        return {valid: json_item.valid, sum: json_item.numbers.reduce((a, b) => a + b)}
-    });
-
-    console.log(values_sum);
-
-    values_sum.forEach((item, index) => {
-        if (item.valid){
-            sum += item.sum
-        }else{
-            if (invalid_count === 1 && index === 1 ){
-                use_invalid = true;
-                invalid_sum += item.sum
-            }else if (!use_invalid){
-                invalid_sum += item.sum
-            }
-            invalid_count += 1;
-        }
-    });
-
-    if (use_invalid){
-        return invalid_sum;
-    }else{
-        return sum;
+let sumValues = (numbers, response_time) => {
+    if (response_time >= 100 && invalid_results < 2) {
+        invalid_results += 1;
+        invalid_sum += numbers.reduce((a, b) => a + b);
     }
-}
+    else if (response_time < 100){
+        valid_results += 1;
+        sum += numbers.reduce((a, b) => a + b);
+    }
+};
+
+exports.index = function(req, res){
+    invalid_results = 0;
+    valid_results = 0;
+    invalid_sum = 0;
+    sum = 0;
+
+
+    let start = new Date();
+    async.parallel([
+            getNumbers,
+            getNumbers,
+            getNumbers
+        ],
+        function(err, results) {
+            if(err) { console.log(err); res.send(500,"Server Error"); return; }
+
+            let value = valid_results > 0 ? sum : invalid_sum;
+
+            res.send({api1:results[0], api2:results[1], api3:results[2], value});
+        });
+
+    console.log(sum);
+};
