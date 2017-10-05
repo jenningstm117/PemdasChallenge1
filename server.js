@@ -1,10 +1,4 @@
-let express = require('express'),
-    app = express(),
-    port = 3000;
+const app = require('./app.js');
+app.listen(3000);
 
-let routes = require('./routes');
-routes(app);
-
-app.listen(port);
-
-console.log('server started on: ' + port);
+console.log('server started on: ' + 3000);

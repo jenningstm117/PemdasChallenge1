@@ -1,6 +1,7 @@
 'use strict';
 module.exports = function(app) {
-    let api = require('./controller');
+
+    let api = require('./controllers/controller');
 
     app.route('/')
         .get(api.index);
